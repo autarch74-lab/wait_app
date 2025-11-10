@@ -1,0 +1,28 @@
+name: wait_app
+description: "Wait: Copilot 질의문 자동생성용 모바일 유틸리티"
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: '>=3.9.2 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.5
+  http: ^0.13.6
+  webfeed: ^0.7.0
+  path_provider: ^2.0.11
+  intl: ^0.17.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  test: ^1.21.0
+  mockito: ^5.4.0
+  flutter_lints: ^2.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/
