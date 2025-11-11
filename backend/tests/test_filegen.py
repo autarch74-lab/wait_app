@@ -1,9 +1,9 @@
-# backend/tests/test_filegen.py
+﻿# backend/tests/test_filegen.py
 from backend.filegen.writer import write_r_index, write_r_news, write_q_frame
 from pathlib import Path
 
 def read_lines(p):
-    return [l.rstrip("\n") for l in Path(p).read_text(encoding="utf-8").splitlines()]
+    return [l.rstrip("\n") for line in Path(p).read_text(encoding="utf-8").splitlines()]
 
 def test_write_files(tmp_path):
     base = tmp_path / "out"

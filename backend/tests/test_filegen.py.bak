@@ -1,14 +1,17 @@
-# backend/tests/test_deduper.py
-from backend.deduper.deduper import dedupe
+# backend/tests/test_filegen.py
+from backend.filegen.writer import write_r_index, write_r_news, write_q_frame
+from pathlib import Path
 
-def test_dedupe_basic():
-    texts = [
-        "Apple releases new iPhone today",
-        "Apple released a new iPhone today",
-        "Unrelated sentence about weather"
-    ]
-    result = dedupe(texts, threshold=0.8)
-    # 첫 두 문장은 유사하므로 하나만 남고, 세번째는 유지
-    assert len(result) == 2
-    assert any("iPhone" in t for t in result)
-    assert any("weather" in t for t in result)
+def read_lines(p):
+    return [l.rstrip("\n") for l in Path(p).read_text(encoding="utf-8").splitlines()]
+
+def test_write_files(tmp_path):
+    base = tmp_path / "out"
+    items = ["line1", "line2", "line3"]
+    write_r_index(str(base), items)
+    write_r_news(str(base), items)
+    write_q_frame(str(base), items)
+
+    assert read_lines(base / "r_index.txt") == items
+    assert read_lines(base / "r_news.txt") == items
+    assert read_lines(base / "q_frame.txt") == items
