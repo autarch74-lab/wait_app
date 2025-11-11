@@ -14,3 +14,14 @@ A few resources to get you started if this is your first Flutter project:
 For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev/), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.
+## Setup repository hooks
+
+After cloning, run the following to enable the repository hooks:
+
+PowerShell (recommended):
+  pwsh -NoProfile -File scripts/setup-hooks.ps1
+
+Or set hooks path manually:
+  git config core.hooksPath .githooks
+
+This ensures the pre-commit BOM-removal hook runs for all contributors.
