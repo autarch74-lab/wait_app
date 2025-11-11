@@ -1,0 +1,600 @@
+#####################################################
+### 파일 트리 구조
+
+```
+gstock_droid/
+├── mobile/
+│   ├── pubspec.yaml
+│   ├── lib/
+│   │   ├── main.dart
+│   │   ├── app.dart
+│   │   ├── modules/
+│   │   │   ├── embedder_dedupe.dart
+│   │   │   ├── file_generator.dart
+│   │   │   ├── indices_collector.dart
+│   │   │   ├── report_builder.dart
+│   │   │   └── rss_collector.dart
+│   │   └── services/
+│   ├── assets/
+│   └── test/
+│       ├── parser_json_test.dart
+│       ├── global_index_service_test.dart
+│       └── widget_test.dart
+├── backend/
+├── infra/
+├── docs/
+├── .gitattributes
+├── .gitignore
+└── .github/
+
+##################################
+\\pubspec.yaml
+
+name: wait_app
+description: "Wait: Copilot 질의문 자동생성용 모바일 유틸리티"
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: '>=3.9.2 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.5
+  http: ^0.13.6
+  webfeed: ^0.7.0
+  path_provider: ^2.0.11
+  intl: ^0.17.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  test: ^1.21.0
+  mockito: ^5.4.0
+  flutter_lints: ^2.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/
+
+##################################
+// lib/main.dart
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'modules/indices_collector.dart';
+import 'modules/report_builder.dart';
+import 'modules/file_generator.dart';
+import 'app.dart';
+
+void main() {
+  runApp(createApp(const HomePage()));
+}
+
+class HomePage extends StatefulWidget {
+  const HomePage({super.key});
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  String _log = '';
+  bool _running = false;
+  bool _copied = false;
+
+  Future<void> _runIndicesFlow() async {
+    if (_running) return;
+    setState(() {
+      _running = true;
+      _copied = false;
+      _log = '';
+    });
+
+    try {
+      final now = DateTime.now();
+      final timeLine = '현재시각: ${now.toLocal().toIso8601String().replaceFirst('T', ' ').split('.').first}';
+      setState(() { _log += '(가) $timeLine\n\n'; });
+
+      String domestic = '';
+      try {
+        domestic = await fetchDomesticIndicesText(verbose: false);
+      } catch (e) {
+        domestic = 'ERROR fetching domestic indices: $e';
+      }
+
+      String global = '';
+      try {
+        global = await fetchGlobalIndicesSummary(verbose: false);
+      } catch (e) {
+        global = 'ERROR fetching global indices: $e';
+      }
+
+      final domesticNames = <String>{};
+      for (final line in domestic.split('\n')) {
+        final t = line.trim();
+        if (t.isEmpty) {
+          continue;
+        }
+        final idxColon = t.indexOf(':');
+        String name;
+        if (idxColon != -1) {
+          name = t.substring(0, idxColon).trim();
+        } else {
+          final parts = t.split(RegExp(r'\s+'));
+          name = parts.isNotEmpty ? parts[0] : t;
+        }
+        domesticNames.add(name.toUpperCase());
+      }
+
+      final filteredGlobalLines = <String>[];
+      for (final line in global.split('\n')) {
+        final t = line.trim();
+        if (t.isEmpty) {
+          continue;
+        }
+        var skip = false;
+        for (final dn in domesticNames) {
+          if (t.toUpperCase().startsWith(dn) || t.toUpperCase().contains(dn)) {
+            skip = true;
+            break;
+          }
+        }
+        if (!skip) {
+          filteredGlobalLines.add(t);
+        }
+      }
+      final filteredGlobal = filteredGlobalLines.join('\n');
+
+      final rIndexText = buildRIndexText(timeLine, domestic, filteredGlobal, '');
+      await writeRIndexFile(rIndexText);
+
+      setState(() {
+        _log += '(다) 지수 현황\n';
+        _log += '$domestic\n\n';
+        _log += '글로벌 지수 요약\n';
+        _log += '${filteredGlobal.isEmpty ? "(데이터 없음)" : filteredGlobal}\n\n';
+      });
+    } finally {
+      setState(() { _running = false; });
+      if (_log.isNotEmpty) {
+        const int clipboardMax = 20000;
+        final String toCopy = _log.length > clipboardMax ? '${_log.substring(0, clipboardMax)}\n...[truncated]' : _log;
+        try {
+          await Clipboard.setData(ClipboardData(text: toCopy));
+          setState(() { _copied = true; });
+          if (mounted) {
+            final message = _log.length > clipboardMax ? '클립보드 복사완료 (요약)' : '클립보드 복사완료';
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+          }
+        } catch (e) {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('클립보드 복사 실패: $e')));
+        }
+      }
+    }
+  }
+
+  // Issue flow and other UI omitted for brevity; keep same pattern as _runIndicesFlow
+
+  void clearLog() {
+    setState(() {
+      _log = '';
+      _copied = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Wait')),
+      body: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                ElevatedButton(onPressed: _running ? null : _runIndicesFlow, child: const Text('Kospi')),
+                const SizedBox(width: 12),
+                ElevatedButton(onPressed: _running ? null : () async {}, child: const Text('Issue')),
+                const SizedBox(width: 12),
+                ElevatedButton(onPressed: _running ? null : () async {}, child: const Text('Category')),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                ElevatedButton(onPressed: _log.isEmpty ? null : clearLog, child: const Text('Clear')),
+                const SizedBox(width: 12),
+                if (_running)
+                  const Text('Running...', style: TextStyle(fontWeight: FontWeight.bold))
+                else if (_copied)
+                  const Text('Copy', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green))
+                else
+                  const SizedBox.shrink(),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(6)),
+                padding: const EdgeInsets.all(8),
+                child: SingleChildScrollView(
+                  child: SelectableText(_log, style: const TextStyle(fontFamily: 'monospace', fontSize: 12)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+
+##################################
+// lib/app.dart
+import 'package:flutter/material.dart';
+
+Widget createApp(Widget home) => MaterialApp(
+  title: 'Wait',
+  debugShowCheckedModeBanner: false,
+  theme: ThemeData(primarySwatch: Colors.blue),
+  home: home,
+);
+
+
+##################################
+// lib/modules/embedder_dedupe.dart
+
+double simpleJaccard(String a, String b) {
+  final sa = a.toLowerCase().split(RegExp(r'\s+')).where((s) => s.isNotEmpty).toSet();
+  final sb = b.toLowerCase().split(RegExp(r'\s+')).where((s) => s.isNotEmpty).toSet();
+  final inter = sa.intersection(sb).length;
+  final union = sa.union(sb).length;
+  if (union == 0) return 0.0;
+  return inter / union;
+}
+
+List<T> dedupeBySimilarity<T>(List<T> items, String Function(T) toText, double threshold) {
+  final used = <int>{};
+  final result = <T>[];
+  for (var i = 0; i < items.length; i++) {
+    if (used.contains(i)) continue;
+    result.add(items[i]);
+    for (var j = i + 1; j < items.length; j++) {
+      if (used.contains(j)) continue;
+      final sim = simpleJaccard(toText(items[i]), toText(items[j]));
+      if (sim >= threshold) used.add(j);
+    }
+  }
+  return result;
+}
+
+
+##################################
+// lib/modules/file_generator.dart
+
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+
+Future<File> writeRIndexFile(String content) async {
+  final dir = await getApplicationDocumentsDirectory();
+  final file = File('${dir.path}/r_index.txt');
+  return file.writeAsString(content, flush: true);
+}
+
+Future<File> writeRNewsFile(String content) async {
+  final dir = await getApplicationDocumentsDirectory();
+  final file = File('${dir.path}/r_news.txt');
+  return file.writeAsString(content, flush: true);
+}
+
+##################################
+// lib/modules/indices_collector.dart
+
+// lib/modules/indices_collector.dart
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
+/// Public API for domestic indices
+Future<String> fetchDomesticIndicesText({bool verbose = false}) async {
+  // 간단한 샘플 구현. 실제 API 호출 로직으로 교체 가능.
+  final buffer = StringBuffer();
+  buffer.writeln('KOSPI: 4,013.64 (+59.88 / +1.51%)');
+  buffer.writeln('KOSDAQ: 877.27 (+0.46 / +0.05%)');
+  return buffer.toString().trim();
+}
+
+/// Public API for global indices
+Future<String> fetchGlobalIndicesSummary({bool verbose = false}) async {
+  final Map<String, Map<String, dynamic>> indices = {
+    'Dow(종합)': {'url': 'https://polling.finance.naver.com/api/realtime/worldstock/index/.DJI', 'prefer': 'polling'},
+    'S&P500(S&P)': {'url': 'https://polling.finance.naver.com/api/realtime/worldstock/index/.INX', 'prefer': 'polling'},
+    'NASDAQ(종합)': {'url': 'https://polling.finance.naver.com/api/realtime/worldstock/index/.IXIC', 'prefer': 'polling'},
+    'KOSPI': {'url': 'https://m.stock.naver.com/domestic/index/KOSPI', 'prefer': 'domestic'},
+    'KOSDAQ': {'url': 'https://m.stock.naver.com/domestic/index/KOSDAQ', 'prefer': 'domestic'},
+  };
+
+  final buffer = StringBuffer();
+
+  for (final entry in indices.entries) {
+    final label = entry.key;
+    final originalUrl = entry.value['url'] as String;
+    final prefer = entry.value['prefer'] as String? ?? 'polling';
+    bool found = false;
+
+    if (prefer != 'html') {
+      try {
+        final resp = await http.get(Uri.parse(originalUrl)).timeout(const Duration(seconds: 8));
+        if (resp.statusCode == 200) {
+          try {
+            final dynamic doc = json.decode(resp.body);
+            final extracted = extractFromPollingJson(doc, fallbackLabel: label);
+            if (extracted.isNotEmpty) {
+              buffer.writeln('- $extracted');
+              found = true;
+            }
+          } catch (_) {
+            // JSON 파싱 실패 -> HTML 폴백
+          }
+        }
+      } catch (_) {
+        // 요청 실패
+      }
+    }
+
+    if (!found) {
+      try {
+        final resp2 = await http.get(Uri.parse(originalUrl)).timeout(const Duration(seconds: 8));
+        if (resp2.statusCode == 200) {
+          final extracted = extractFromHtmlFallback(resp2.body, label);
+          buffer.writeln('- $extracted');
+        } else {
+          buffer.writeln('- $label: (not found)');
+        }
+      } catch (_) {
+        buffer.writeln('- $label: (not found)');
+      }
+    }
+  }
+
+  return buffer.toString().trim();
+}
+
+/// Public helper for tests and reuse
+String extractFromPollingJson(dynamic doc, {String fallbackLabel = ''}) {
+  try {
+    if (doc is Map && doc.containsKey('datas') && doc['datas'] is List && (doc['datas'] as List).isNotEmpty) {
+      final Map first = (doc['datas'] as List).first;
+      final closePrice = (first['closePrice'] ?? first['close'] ?? first['price'] ?? first['last'])?.toString() ?? '';
+      final compareClose = (first['compareToPreviousClosePrice'] ?? first['compareToPreviousPrice'] ?? first['change'])?.toString() ?? '';
+      final fluctuationsRatio = (first['fluctuationsRatio'] ?? first['changeRate'] ?? first['percent'])?.toString() ?? '';
+      String changeStr = compareClose.replaceAll(',', '');
+      String rateStr = fluctuationsRatio.replaceAll(',', '');
+      if (rateStr.isNotEmpty && !rateStr.contains('%')) {
+        rateStr = '$rateStr%';
+      }
+      final parts = <String>[];
+      if (fallbackLabel.isNotEmpty) {
+        parts.add(fallbackLabel);
+      }
+      if (closePrice.isNotEmpty) {
+        parts.add(closePrice.replaceAll(',', ''));
+      }
+      if (changeStr.isNotEmpty) {
+        parts.add(changeStr.startsWith('-') ? changeStr : '+$changeStr');
+      }
+      if (rateStr.isNotEmpty) {
+        parts.add(rateStr);
+      }
+      return parts.join(' ');
+    }
+  } catch (_) {}
+  final candidates = collectNumericCandidates(doc);
+  if (candidates.isNotEmpty) {
+    final first = candidates.values.first;
+    return '$fallbackLabel $first';
+  }
+  return '';
+}
+
+Map<String, String> collectNumericCandidates(dynamic node) {
+  final Map<String, String> found = {};
+  void walk(dynamic v, [String path = '']) {
+    if (v == null) {
+      return;
+    }
+    if (v is Map) {
+      v.forEach((k, val) {
+        final key = k.toString().toLowerCase();
+        if (val is num || (val is String && RegExp(r'^[+-]?\d{1,3}(?:,\d{3})*(?:\.\d+)?%?$').hasMatch(val.trim()))) {
+          final fullKey = path.isEmpty ? key : '$path.$key';
+          found[fullKey] = val.toString();
+        }
+        walk(val, path.isEmpty ? key : '$path.$key');
+      });
+    } else if (v is List) {
+      for (var i = 0; i < v.length; i++) {
+        walk(v[i], '$path[$i]');
+      }
+    } else {
+      if (v is num || (v is String && RegExp(r'^[+-]?\d{1,3}(?:,\d{3})*(?:\.\d+)?%?$').hasMatch(v.toString().trim()))) {
+        if (path.isNotEmpty) {
+          found[path] = v.toString();
+        }
+      }
+    }
+  }
+  walk(node);
+  return found;
+}
+
+String extractFromHtmlFallback(String body, String label) {
+  final numToken = RegExp(r'[+-]?\d{1,3}(?:,\d{3})*(?:\.\d+)?');
+  final percentToken = RegExp(r'[+-]?\d+(?:\.\d+)?\s*%');
+  final allNums = <String>[];
+  for (final m in numToken.allMatches(body)) {
+    allNums.add(m.group(0) ?? '');
+  }
+  final percents = <String>[];
+  for (final m in percentToken.allMatches(body)) {
+    percents.add(m.group(0) ?? '');
+  }
+  String clean(String s) => s.replaceAll(',', '').trim();
+  String price = '';
+  String change = '';
+  String rate = '';
+  if (allNums.isNotEmpty) {
+    price = clean(allNums[0]);
+    if (allNums.length >= 2) {
+      final second = allNums[1];
+      if (second.startsWith('+') || second.startsWith('-')) {
+        change = clean(second);
+        if (percents.isNotEmpty) {
+          rate = percents.first.replaceAll(' ', '');
+        }
+      } else {
+        if (percents.isNotEmpty) {
+          rate = percents.first.replaceAll(' ', '');
+        } else {
+          final signed = allNums.firstWhere((t) => t.startsWith('+') || t.startsWith('-'), orElse: () => '');
+          if (signed.isNotEmpty) {
+            change = clean(signed);
+          } else {
+            change = clean(second);
+          }
+        }
+      }
+    } else {
+      if (percents.isNotEmpty) {
+        rate = percents.first.replaceAll(' ', '');
+      }
+    }
+  } else {
+    if (percents.isNotEmpty) {
+      rate = percents.first.replaceAll(' ', '');
+    }
+  }
+  final parts = <String>[];
+  parts.add(label);
+  if (price.isNotEmpty) {
+    parts.add(price);
+  }
+  if (change.isNotEmpty) {
+    parts.add(change.startsWith('-') ? change : '+$change');
+  }
+  if (rate.isNotEmpty) {
+    parts.add(rate);
+  }
+  return parts.join(' ');
+}
+
+##################################
+// lib/modules/report_builder.dart
+
+import 'rss_collector.dart';
+
+String buildRIndexText(String timestamp, String domestic, String globalFiltered, String stockApiResults) {
+  final sb = StringBuffer();
+  sb.writeln('[$timestamp]');
+  sb.writeln(domestic.trim());
+  sb.writeln('');
+  sb.writeln('글로벌 지수 요약');
+  sb.writeln(globalFiltered.isEmpty ? '(데이터 없음)' : globalFiltered);
+  sb.writeln('');
+  sb.writeln(stockApiResults.isEmpty ? '(종목 API 결과 없음)' : stockApiResults);
+  return sb.toString().trim();
+}
+
+String buildRNewsText(String timestamp, List<Article> topArticles) {
+  final sb = StringBuffer();
+  sb.writeln('[$timestamp]');
+  for (var i = 0; i < topArticles.length; i++) {
+    final a = topArticles[i];
+    sb.writeln('${i + 1} | ${a.source} | ${a.title} | ${a.link}');
+  }
+  return sb.toString().trim();
+}
+
+##################################
+// lib/modules/rss_collector.dart
+
+import 'package:http/http.dart' as http;
+import 'package:webfeed/webfeed.dart';
+
+class Article {
+  final String title;
+  final String description;
+  final String link;
+  final DateTime? pubDate;
+  final String source;
+  Article(this.title, this.description, this.link, this.pubDate, this.source);
+}
+
+Future<List<Article>> fetchRssFeed(String url, String sourceName) async {
+  try {
+    final resp = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 8));
+    if (resp.statusCode != 200) return [];
+    final rss = RssFeed.parse(resp.body);
+    return rss.items?.map((i) => Article(i.title ?? '', i.description ?? '', i.link ?? '', i.pubDate, sourceName)).toList() ?? [];
+  } catch (_) {
+    return [];
+  }
+}
+
+##################################
+// test/parser_json_test.dart
+import 'package:flutter_test/flutter_test.dart';
+import 'package:wait_app/modules/indices_collector.dart';
+
+void main() {
+  test('extractFromPollingJson handles datas schema', () {
+    final sample = {
+      'datas': [
+        {'closePrice': '1000', 'compareToPreviousClosePrice': '-10', 'fluctuationsRatio': '-1.0'}
+      ]
+    };
+    final extracted = extractFromPollingJson(sample, fallbackLabel: 'TEST');
+    expect(extracted.contains('1000'), true);
+    expect(extracted.contains('-10') || extracted.contains('+10'), true);
+  });
+}
+
+##################################
+// test/widget_test.dart
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  test('sanity', () {
+    expect(1 + 1, 2);
+  });
+}
+
+
+##################################
+import 'package:flutter_test/flutter_test.dart';
+import 'package:wait_app/modules/indices_collector.dart';
+
+void main() {
+  test('fetchGlobalIndicesSummary returns non-empty string', () async {
+    final s = await fetchGlobalIndicesSummary();
+    expect(s, isNotEmpty);
+  });
+}
+
+
+##################################
+
+
+##################################
+
+
+##################################
+
+
+##################################
+
+
+
+
+

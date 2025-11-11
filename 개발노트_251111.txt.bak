@@ -142,58 +142,29 @@
 
 ```
 gstock_droid/
-├── android/
-├── ios/
 ├── mobile/
 │   ├── pubspec.yaml
 │   ├── lib/
 │   │   ├── main.dart
-│   │   └── src/
-│   │       ├── modules/
-│   │       │   ├── collector.dart
-│   │       │   ├── parser.dart
-│   │       │   ├── embedder.dart
-│   │       │   ├── deduper.dart
-│   │       │   ├── ranker.dart
-│   │       │   └── filegen.dart
-│   │       ├── ui/
-│   │       │   ├── home_page.dart
-│   │       │   └── widgets.dart
-│   │       └── services/
-│   │           └── clipboard_service.dart
+│   │   ├── app.dart
+│   │   ├── modules/
+│   │   │   ├── embedder_dedupe.dart
+│   │   │   ├── file_generator.dart
+│   │   │   ├── indices_collector.dart
+│   │   │   ├── report_builder.dart
+│   │   │   └── rss_collector.dart
+│   │   └── services/
 │   ├── assets/
-│   │   ├── r_index.txt
-│   │   ├── r_news.txt
-│   │   └── q_frame.txt
 │   └── test/
 │       ├── parser_json_test.dart
 │       ├── global_index_service_test.dart
 │       └── widget_test.dart
 ├── backend/
-│   ├── api/
-│   │   ├── main.py
-│   │   ├── routes.py
-│   │   └── schemas.py
-│   ├── workers/
-│   │   ├── collector_worker.py
-│   │   └── embed_worker.py
-│   ├── requirements.txt
-│   ├── Dockerfile
-│   └── docker-compose.yml
 ├── infra/
-│   ├── docker/
-│   │   └── Dockerfile.backend
-│   └── terraform/
-│       └── main.tf
 ├── docs/
-│   ├── spec.md
-│   └── README_DEV.md
 ├── .gitattributes
 ├── .gitignore
-├── .github/
-│   └── workflows/
-│       └── flutter-ci.yml
-└── README.md
+└── .github/
 ```
 
 ---
@@ -342,8 +313,61 @@ winget install --id GitHub.cli
 원하시면 지금 PR 페이지를 열어드리겠습니다.
 
 #####################################################
+################################################
+
+- 현재시각 (고정값)
+- 주요 이슈 (정책/금융 뉴스, 산업별 이슈, 글로벌 이슈)
+- 주요 지수 (글로벌지수, 국내지수, 코스피 주요종목 실시간 가격)
+- 고정 질의문
+"고정 질의문
+(가), (나) 아래 리포트는 반드시 현재시각 기준으로 작성할 것.
+과거 지수 수준이나 표현은 사용하지 말고, 제시된 수치만 기준으로 작성할 것.
+지수 표현(예: ‘4,100선 돌파’)은 반드시 제시된 수치와 일치하도록 작성할 것.
+작성된 리포트 내 수치와 표현이 모두 현재시각 기준으로 일관되게 작성되었는지 검토하고, 불일치가 있다면 수정할 것.
+(A) 당일 현재시각까지의 외국인/기관/개인 자금흐름 요약
+(B) 당일 현재시각까지의 등락폭 큰 주요종목 및 배경 설명 (TOP10),(종목명, 현재가, 등락율, 특징)
+(C) 당일 현재시각까지의 외국인·기관·개인 및 거래대금 상위 종목 요약 (TOP10),(종목명, 현재가, 등락율, 거래대금(억), 주요 수급 주체, 특징)
+(D) 투자 시점 관찰 포인트 및 전략
+(E) 오늘 코스피장 30분 단위로 자세히 분석
+(F) 단기적으로 기술적 반등 가능성 높은 코스피 종목 TOP20(종목명, 현재가, 등락률, 전일대비, 목표가, 목표가대비, 기술적 포인트, 배경 요약)
+(G) 내일 장 대응 전략
+
+(가), (나), (A~(G) 까지  .txt 형식으로 보여줘."
+(A) 각 분야별 현황(분야, 대표주, 상승/하락 추세, 익일 추세, 배경, 기타) (B) 투자 시점 관찰 포인트 및 전략 (C) 오늘 코스피장 30분 단위로 자세히 분석 (D) 단기적으로 기술적 반등 가능성 높은 코스피 종목 TOP20(종목명, 현재가, 등락률, 전일대비, 목표가, 목표가대비, 기술적 포인트, 배경 요약) (E) 내일 장 대응 전략
+
+
+################################################
+
+wsl --install
+wsl --set-default-version 2
+wsl --list --verbose
+
+
+python -m pip install --upgrade pip
+python -m pip install -r backend/requirements.txt
+python -m pytest backend/tests -q -k "not integration"
 
 #####################################################
+
+pwsh -NoProfile -File .\scripts\remove-bom.ps1
+
+
+# Get staged files
+$staged = git diff --cached --name-only --diff-filter=ACM
+if (-not $staged) { exit 0 }
+$files = $staged -split "`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne "" }
+foreach ($f in $files) {
+  if ($f -match '\.(toml|cfg|py|md|txt)$') {
+    if (-not (Test-Path $f)) { continue }
+    $b = [System.IO.File]::ReadAllBytes($f)
+    if ($b.Length -ge 3 -and $b[0] -eq 0xEF -and $b[1] -eq 0xBB -and $b[2] -eq 0xBF) {
+      [System.IO.File]::WriteAllBytes($f, $b[3..($b.Length-1)])
+      Write-Host "Removed BOM:" $f
+      git add -- $f
+    }
+  }
+}
+exit 0
 
 #####################################################
 
