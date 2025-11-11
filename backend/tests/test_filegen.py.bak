@@ -1,0 +1,14 @@
+# backend/tests/test_deduper.py
+from backend.deduper.deduper import dedupe
+
+def test_dedupe_basic():
+    texts = [
+        "Apple releases new iPhone today",
+        "Apple released a new iPhone today",
+        "Unrelated sentence about weather"
+    ]
+    result = dedupe(texts, threshold=0.8)
+    # 첫 두 문장은 유사하므로 하나만 남고, 세번째는 유지
+    assert len(result) == 2
+    assert any("iPhone" in t for t in result)
+    assert any("weather" in t for t in result)
