@@ -1,3 +1,5 @@
+// lib/modules/embedder_dedupe.dart
+
 double simpleJaccard(String a, String b) {
   final sa = a.toLowerCase().split(RegExp(r'\s+')).where((s) => s.isNotEmpty).toSet();
   final sb = b.toLowerCase().split(RegExp(r'\s+')).where((s) => s.isNotEmpty).toSet();

@@ -1,3 +1,5 @@
+// lib/modules/rss_collector.dart
+
 import 'package:http/http.dart' as http;
 import 'package:webfeed/webfeed.dart';
 

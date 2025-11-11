@@ -1,3 +1,5 @@
+// lib/modules/report_builder.dart
+
 import 'rss_collector.dart';
 
 String buildRIndexText(String timestamp, String domestic, String globalFiltered, String stockApiResults) {

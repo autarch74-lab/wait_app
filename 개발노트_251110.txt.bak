@@ -1,0 +1,361 @@
+Wait이라는 프로그램을 개발 하려고 해.
+#############
+
+프로젝트 개요
+주요 목적은 copolite에 손쉬운 질의를 위한 질의문 모바일용 자동 생성앱 개발
+copilot의 정확한 답변을 유도하기 위하여 질의시 주요지수 및 주요 이슈사항을 질의문에 포함시킨다.
+주요지수(글로벌지수, 국내지수, 코스피 주요종목 실시간 가격)
+주요 이슈사항(정책/금융 뉴스, 산업별 이슈, 글로벌 이슈)
+주요지수는 네이버 금융(또는 API)을 이용해 국내 지수와 종목 실시간 시세를 수집한다. 코스피 종목들의 현재가·등락액·등락률을 읽어 사람이 보기 좋은 문자열로 고정된 r_index.txt 로 저장한다.
+주요이슈는 주요 국내 언론사의 RSS의 카테고리를 활용하여 데이터 수집 후 NLP 기반으로 title + description을 벡터화 → Cosine similarity로 유사 기사 제거 및 중요도 정의
+각종 포탈사이트를 이용해 국내외 주요 뉴스및 이슈사항을 수집한다.
+동작방식 (앱실행 -> 메인화면에서 필요항목 체크 -> 실행 -> 주요뉴스 검색 후 결과물 r_news.txt 파일 저장, 주요 지수 결과물 r_index.txt 파일 저장 -> "지수값" 클릭 ("r_index.txt" 내용을 클립보드에 복사) -> "질의문" 클릭 ("q_frame.txt" 내용을 읽어와 클립보드에 복사)
+각 기능별 별도의 모듈을 만들어 메인페이지에서는 모듈별 생성된 텍스트를 화면 출력 및 클립보드에 복사
+
+초기 구조 설계 및 UI
+메인화면 (각 메뉴들은 라디오 버튼 형식으로 선택/미선택 형식)
+각각의 메뉴을 선택 및 취소할수 있게한다.
+전체선택/전체취소 메뉴 포함.
+지수값 -> 저장된 주요지수(r_index.txt)을 읽어와 클립보드에 복사하는 메뉴 생성.
+주요뉴스 -> 저장된 주요뉴스(r_index.txt)을 읽어와 클립보드에 복사하는 메뉴 생성.
+질의문 -> 고정된 질의문(r_frame.txt)을 읽어와 클립보드에 복사하는 메뉴 생성.
+
+
+- 현재시각 (고정값)
+- 주요 이슈 (정책/금융 뉴스, 산업별 이슈, 글로벌 이슈)
+- 주요 지수 (글로벌지수, 국내지수, 코스피 주요종목 실시간 가격)
+- 고정 질의문
+"고정 질의문
+(가), (나) 아래 리포트는 반드시 현재시각 기준으로 작성할 것.
+과거 지수 수준이나 표현은 사용하지 말고, 제시된 수치만 기준으로 작성할 것.
+지수 표현(예: ‘4,100선 돌파’)은 반드시 제시된 수치와 일치하도록 작성할 것.
+작성된 리포트 내 수치와 표현이 모두 현재시각 기준으로 일관되게 작성되었는지 검토하고, 불일치가 있다면 수정할 것.
+(A) 당일 현재시각까지의 외국인/기관/개인 자금흐름 요약
+(B) 당일 현재시각까지의 등락폭 큰 주요종목 및 배경 설명 (TOP10),(종목명, 현재가, 등락율, 특징)
+(C) 당일 현재시각까지의 외국인·기관·개인 및 거래대금 상위 종목 요약 (TOP10),(종목명, 현재가, 등락율, 거래대금(억), 주요 수급 주체, 특징)
+(D) 투자 시점 관찰 포인트 및 전략
+(E) 오늘 코스피장 30분 단위로 자세히 분석
+(F) 단기적으로 기술적 반등 가능성 높은 코스피 종목 TOP20(종목명, 현재가, 등락률, 전일대비, 목표가, 목표가대비, 기술적 포인트, 배경 요약)
+(G) 내일 장 대응 전략
+
+(가), (나), (A~(G) 까지  .txt 형식으로 보여줘."
+
+
+5. AI 기반 요약 및 분류
+자연어 처리(NLP)를 통해 뉴스 내용을 분석하고 중요도를 자동 분류
+
+📰 한국경제 (Hankyung)
+전체 뉴스: https://www.hankyung.com/feed/news
+경제: https://www.hankyung.com/feed/economy
+증권: https://www.hankyung.com/feed/stock
+글로벌 경제: https://www.hankyung.com/feed/international
+
+📰 매일경제 (MK)
+전체 뉴스: https://www.mk.co.kr/rss/
+경제: https://www.mk.co.kr/rss/30000001/
+증권: https://www.mk.co.kr/rss/30000015/
+국제: https://www.mk.co.kr/rss/30000022/
+
+📰 연합뉴스 (Yonhap)
+전체 뉴스: https://www.yna.co.kr/rss/all
+경제: https://www.yna.co.kr/rss/economy
+금융: https://www.yna.co.kr/rss/finance
+산업: https://www.yna.co.kr/rss/industry
+국제경제: https://www.yna.co.kr/rss/world-economy
+
+📰 서울경제 (Sedaily)
+전체 뉴스: https://www.sedaily.com/rss/NewsAll.xml
+경제: https://www.sedaily.com/rss/NewsEconomy.xml
+증권: https://www.sedaily.com/rss/NewsStock.xml
+산업: https://www.sedaily.com/rss/NewsIndustry.xml
+
+📰 이데일리 (Edaily)
+전체 뉴스: https://rss.edaily.co.kr/rss/all.xml
+경제: https://rss.edaily.co.kr/rss/economy.xml
+증권: https://rss.edaily.co.kr/rss/stock.xml
+산업: https://rss.edaily.co.kr/rss/industry.xml
+글로벌: https://rss.edaily.co.kr/rss/global.xml
+
+
+#########################################################
+#########################################################
+#########################################################
+#########################################################
+
+### ==============================
+### Wait 앱 개발 명세
+### ==============================
+
+### [1] 프로젝트 개요서
+- **앱 이름:** **Wait**  
+- **버전:** **0.1.0 (MVP)**  
+- **목표:** Copilot 질의문 자동생성용 모바일 유틸리티; **실시간 지수·이슈 포함 질의문** 생성 및 클립보드 복사  
+- **배경:** 다수 소스의 경제·정책 이슈를 통합해 Copilot 질의 정확도 향상  
+- **주요 기능:** 지수 수집(r_index.txt), 이슈 수집·중복제거(r_news.txt), 질의문 템플릿(q_frame.txt), 클립보드 복사  
+- **대상 플랫폼:** **iOS / Android (React Native / Expo 권장)**
+
+---
+
+### [2] 기능 명세서
+- **기능 목록:** RSS 수집, 지수 스크래핑/API, 임베딩 기반 중복제거, 중요도 산정, 파일 생성, 클립보드 복사, UI 선택 토글  
+- **화면 흐름도:** 메인 → 옵션선택(지수/뉴스/질의문) → 실행 → r_index.txt / r_news.txt 생성 → 복사 버튼  
+- **기능 상세 설명:** 각 모듈(collector, parser, embedder, ranker, filegen, clipboard) 역할 명시  
+- **상태값 정의:** IDLE / RUNNING / SUCCESS / FAILED / TIMEOUT
+
+---
+
+### [3] UI/UX 설계 문서
+- **와이어프레임:** 홈(체크박스/전체선택, 실행버튼, 로그 출력 영역, 복사 버튼)  
+- **화면 구성 요소:** Kospi / Issue 토글, 로그 출력 영역, 상태 메시지(타임스탬프 포함)  
+- **사용자 플로우:** 앱 실행 → 항목 선택 → 실행 → 결과 미리보기 → 클립보드 복사  
+- **디자인 시스템:** 폰트 **monospace**, 색상 **Material Blue**, 토스트 알림
+
+---
+
+### [4] API 명세서
+- **엔드포인트 예시:** `POST /api/collect/indices`, `POST /api/collect/news`, `GET /api/status`, `POST /api/generate`  
+- **요청 파라미터:** `sources[]`, `force:boolean`, `timeout:int`  
+- **에러 코드:** **404 Not Found**, **500 Server Error**, **408 Timeout (8초 제한)**
+
+---
+
+### [5] 데이터베이스 설계서
+- **ERD:** 없음(주로 API 기반, 메타만 저장)  
+- **테이블 정의서:** `sources`, `articles(id,title,desc,link,embed,score)`, `indices(timestamp,items)`, `jobs`, `logs`  
+- **데이터 흐름:** RSS/API → 파서 → 임베딩 → 클러스터링/랭킹 → 저장 → 파일 생성
+
+---
+
+### [6] 기술 문서
+- **개발 환경:** Node/Python 백엔드(FastAPI), React Native 프런트, Redis, Postgres  
+- **코드 스타일:** ESLint/Prettier, Black, 타입힌트 권장  
+- **디렉토리 구조:** backend/, mobile/, infra/, docs/  
+- **사용 라이브러리:** `sentence-transformers`, `faiss`, `feedparser`, `axios`, `react-native-clipboard`
+
+---
+
+### [7] 테스트 문서
+- **테스트 케이스:** `parser_json_test.dart`, `global_index_service_test.dart`, API 통합 테스트  
+- **QA 체크리스트:** **파서 성공률 ≥ 95%**, 클립보드 복사 정상, UI 상태 메시지 정확성  
+- **버그 리포트 양식:** ID, 재현 단계, 기대값, 실제값, 로그 첨부
+
+---
+
+### [8] 배포 및 릴리즈 노트
+- **배포 절차:** CI 빌드 → 스테이징 배포 → E2E 테스트 → 프로덕션 배포(Docker)  
+- **릴리즈 변경사항:** 기능 목록·버전별 요약 기록  
+- **릴리즈 일정:** 주간 스프린트 기준(2주 단위 권장)
+
+---
+
+### [9] 파일 트리 구조
+```
+gstock_droid/
+├── android/
+├── ios/
+├── mobile/
+│   ├── src/
+│   └── assets/
+├── backend/
+│   ├── api/
+│   ├── workers/
+│   └── tests/
+├── infra/
+└── docs/
+```
+
+**중요 포인트:** **r_index.txt, r_news.txt, q_frame.txt** 포맷 표준화와 **임베딩 기반 중복 제거(유사도 임계값 0.85 권장)**을 우선 구현하세요.
+
+
+
+#########################################################
+
+### 제안 요약
+모듈별로 **개발 → 단위 테스트 → 통합 테스트 → 메인페이지에서 전체 확인**하는 워크플로우는 효율적이고 리스크가 낮은 접근 방식입니다. 각 모듈을 독립적으로 검증해 문제를 조기에 발견하고, 메인페이지 통합 시점에는 안정된 컴포넌트만 결합하므로 전체 품질이 높아집니다.
+
+---
+
+### 모듈별 개발 및 우선순위
+- **모듈 목록 및 권장 순서**
+  - **Indices Collector**: 네이버 금융/API 연동, 실시간 시세 수집  
+  - **RSS Collector**: 다수 매체 RSS 수집기(섹션별 URL 관리)  
+  - **Parser**: RSS/HTML → 구조화된 항목(title, desc, link, pubDate)  
+  - **Embedder & Dedupe**: 임베딩 생성, Cosine similarity 기반 중복 제거 및 클러스터링  
+  - **Ranker**: 중요도 산정(출처 가중치·클러스터 크기·키워드·신속성)  
+  - **File Generator**: r_index.txt, r_news.txt, q_frame.txt 포맷 생성기  
+  - **Clipboard Module**: 모바일에서 파일 내용 클립보드 복사 기능  
+  - **UI Main Page**: 체크리스트, 실행, 로그, 복사 버튼, 결과 미리보기  
+- **우선순위**: Collector → Parser → Embedder/Dedupe → Ranker → File Generator → Clipboard → UI  
+- **이유**: 데이터 수집·정제 파이프라인이 먼저 안정화되어야 UI 통합 시 예측 가능한 입력을 받음.
+
+---
+
+### 테스트 전략 및 합격 기준
+- **단위 테스트**
+  - 각 모듈별 함수·경계조건 테스트(예: RSS 항목 누락, 잘못된 날짜 포맷)  
+  - 예시 테스트명: `test_fetch_indices_success`, `test_rss_parse_missing_description`
+- **통합 테스트**
+  - Collector → Parser → Embedder → Ranker → File Generator 흐름 검증(모의 데이터 사용)  
+  - 예시: `integration_news_pipeline_test`
+- **E2E 테스트**
+  - 모바일 앱에서 버튼 클릭 시 백엔드 호출, 파일 생성, 미리보기, 클립보드 복사까지 시나리오 검증  
+  - 자동화 도구: Detox(React Native) 또는 Appium
+- **성능·신뢰성 테스트**
+  - 파서 성공률 ≥ **95%**  
+  - 임베딩 중복 제거 정확도(유사도 임계값 0.85 권장)  
+  - API 응답 시간 목표: **< 2초**(수집 제외), 타임아웃 8초 정책 적용
+- **수용 기준(예시)**
+  - r_index.txt와 r_news.txt가 지정 포맷으로 생성되고 모바일에서 복사 가능  
+  - 로그에 에러 없음, 상태값이 SUCCESS로 표기
+
+---
+
+### 통합 및 메인페이지 검증 절차
+- **개별 모듈 검증 완료 후 통합 단계**
+  - 스테이징 환경에서 모듈별 컨테이너(또는 서비스)를 배포  
+  - 모의 RSS·지수 피드를 사용해 전체 파이프라인 실행  
+  - 메인페이지에서 각 토글을 켜고 실행 → 생성된 파일을 UI에서 확인 → 클립보드 복사 동작 검증
+- **검증 체크리스트**
+  - 각 모듈 로그 정상 출력  
+  - 파일 포맷 일관성(r_index.txt, r_news.txt, q_frame.txt)  
+  - 클립보드 복사 후 내용 무결성(텍스트 일치)  
+  - 실패 시 재시도 로직 및 에러 메시지(FAILED/Timeout) 정상 동작
+- **릴리즈 전 승인**
+  - QA가 E2E 시나리오 3회 연속 성공 시 메인페이지 통합 승인
+
+---
+
+### CI/CD·운영·법적 준수 권장사항
+- **CI 파이프라인**
+  - PR → 자동 단위/통합 테스트 → 스테이징 배포 → E2E 자동화 → 수동 승인 → 프로덕션 배포
+- **모니터링**
+  - 수집 성공률, 파서 오류율, 임베딩 처리 시간, 파일 생성 시간, 클립보드 복사 실패율 지표 수집
+- **롤백·재시도**
+  - 수집 실패 시 지수별 백오프 재시도, 파일 생성 실패 시 이전 정상 파일 제공
+- **법적·윤리적 준수**
+  - 스크래핑 전 robots.txt·이용약관 확인, 기사 전문 저장 금지(제목·요약·링크만), API 우선 사용
+- **보안**
+  - API 키·비밀값은 서버에 안전 보관, 모바일은 토큰 기반 인증
+
+---
+
+### 간단 일정 예시 및 다음 단계
+- **스프린트 1 (1주)**: Indices Collector + 단위 테스트  
+- **스프린트 2 (1주)**: RSS Collector + Parser + 단위 테스트  
+- **스프린트 3 (1주)**: Embedder/Dedupe + Ranker + 통합 테스트(뉴스 파이프라인)  
+- **스프린트 4 (1주)**: File Generator + Clipboard Module + E2E 시나리오  
+- **스프린트 5 (1주)**: UI Main Page 통합, E2E 자동화, QA 승인  
+- **총합(예시)**: **5주**로 MVP 통합 가능, 병렬 개발로 단축 가능
+
+---
+
+이 방식은 **문제 발견을 조기에 국한시키고 통합 리스크를 줄이는** 실무적 접근입니다. 다음 단계로는 각 모듈의 **간단한 인터페이스(입력/출력 포맷)**를 정의해 제가 바로 테스트 케이스와 샘플 입력·출력을 만들어 드리겠습니다.
+
+#########################################################
+
+**즉시 시작할 작업은 리포지토리와 인터페이스를 만들고, 데이터 수집(지수·RSS) 프로토타입을 먼저 구현해 단위 테스트하는 것입니다.**  
+
+### 우선순위(바로 할 일)
+- **리포지토리 생성 및 이슈 템플릿 구성**(GitHub)  
+- **입출력 인터페이스 정의**: RSS 항목 JSON, 지수 항목 JSON, r_index.txt/r_news.txt 포맷 명세  
+- **모듈 골격 생성**: `indices_collector`, `rss_collector`, `parser`, `embedder_dedupe`, `ranker`, `file_generator`, `clipboard`, `ui_stub`  
+
+### 1단계(개발·테스트 흐름)
+- **Indices Collector 프로토타입**: 네이버 금융 API/스크래핑(모의 데이터) → 단위 테스트 작성  
+- **RSS Collector + Parser**: 5개 매체 RSS 연결 → `title, description, link, pubDate` 추출 → **파서 성공률 ≥95%** 목표로 테스트  
+- **결과물**: 샘플 `r_index.txt`, `r_news.txt` 자동 생성 스크립트
+
+### 2단계(핵심 알고리즘)
+- **Embedder & Dedupe** 구현: `sentence-transformers` 사용, **유사도 임계값 0.85**로 중복 제거  
+- **Ranker**: 출처 가중치·클러스터 크기·키워드·신속성 가중치로 점수 산정  
+- 단위 테스트: 유사도·클러스터링 케이스 커버
+
+### 통합·검증
+- 통합 테스트: Collector → Parser → Embedder → Ranker → FileGenerator 파이프라인 실행  
+- E2E: 모바일 메인페이지(스텁)에서 실행 후 **클립보드 복사 정상 동작** 확인
+
+### 단기 일정(권장)
+- **Week 1:** 리포지토리·인터페이스·Indices/RSS 프로토타입  
+- **Week 2:** Parser 안정화·단위테스트·샘플 파일 생성  
+- **Week 3:** Embedder/Dedupe·Ranker 구현·통합 테스트  
+- **Week 4:** UI 통합·E2E·QA(릴리즈 준비)
+
+**지금 바로 시작할 구체적 액션:** 리포지토리 생성, 인터페이스 문서(예: `spec/interfaces.md`) 작성, 그리고 `indices_collector`와 `rss_collector`의 최소 동작 프로토타입을 구현해 단위 테스트를 돌리세요.
+#########################################################
+
+모듈 파일 구조를 생성하고 제공된 코드 템플릿을 각 파일에 붙여넣습니다.
+
+New-Item -ItemType Directory -Path .\lib\modules
+New-Item -ItemType File -Path .\lib\modules\indices_collector.dart -Force
+New-Item -ItemType File -Path .\lib\modules\rss_collector.dart -Force
+New-Item -ItemType File -Path .\lib\modules\embedder_dedupe.dart -Force
+New-Item -ItemType File -Path .\lib\modules\report_builder.dart -Force
+New-Item -ItemType File -Path .\lib\modules\file_generator.dart -Force
+
+flutter pub get
+flutter analyze
+flutter test
+flutter run
+flutter pub outdated
+flutter pub upgrade
+flutter clean
+
+
+flutter doctor -v
+flutter --version
+dart --version
+
+#########################################################
+wait_app/
+├── lib/
+│   ├── main.dart
+│   └── modules/
+│       ├── indices_collector.dart
+│       ├── rss_collector.dart
+│       ├── embedder_dedupe.dart
+│       ├── report_builder.dart
+│       └── file_generator.dart
+├── test/
+│   ├── parser_json_test.dart
+│   └── global_index_service_test.dart
+├── spec/
+│   └── interfaces.md
+└── pubspec.yaml
+
+
+통합 흐름과 UI 연동
+HomePage 버튼 동작
+
+Kospi 버튼 → indices_collector.fetchGlobalIndicesSummary() 호출 → report_builder.buildRIndexText()로 포맷 → file_generator.writeRIndexFile() 저장 → Clipboard.setData(...) 복사 → UI에 _log로 표시
+
+Issue 버튼 → rss_collector.fetchRssFeed() 여러 소스 병렬 호출 → embedder_dedupe.dedupeBySimilarity() 적용 → ranker로 상위 N개 선정 → file_generator.writeRNewsFile() 저장 → 복사
+
+비동기 처리 권장 패턴
+
+각 모듈은 Future 반환
+
+UI에서는 setState로 상태 전이(IDLE → RUNNING → SUCCESS/FAILED)
+
+네트워크 호출은 timeout 적용(8초) 및 예외 처리
+
+git init
+git add .
+git commit -m "initial commit"
+git branch -M main
+git remote add origin https://github.com/autarch74-lab/wait_app.git
+git push -u origin main
+
+git config user.name "TOTO"
+git config user.email "TOTO@TOTO.com"
+
+# 예시: 실제 경로로 바꿔서 실행
+$ghPath = 'C:\Users\최승주\AppData\Local\Programs\GitHub CLI' 
+$old = [Environment]::GetEnvironmentVariable('Path','User')
+[Environment]::SetEnvironmentVariable('Path', "$old;$ghPath", 'User')
+
+winget install --id GitHub.cli
+gh auth login
+gh pr create --base main --head feat/indices-modularize --title "feat: modular indices" --body "모듈화된 지수 수집 및 테스트 추가. 검증: flutter analyze, flutter test"
+
+
+
