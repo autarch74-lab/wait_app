@@ -1,0 +1,23 @@
+# backend/filegen/writer.py
+from datetime import datetime
+from pathlib import Path
+
+
+def write_file(path: str, lines: list[str]):
+    p = Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    with p.open("w", encoding="utf-8") as f:
+        for line in lines:
+            f.write(f"{line}\n")
+
+
+def write_r_index(base_dir: str, items: list[str]):
+    write_file(f"{base_dir}/r_index.txt", items)
+
+
+def write_r_news(base_dir: str, items: list[str]):
+    write_file(f"{base_dir}/r_news.txt", items)
+
+
+def write_q_frame(base_dir: str, items: list[str]):
+    write_file(f"{base_dir}/q_frame.txt", items)

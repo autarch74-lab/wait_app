@@ -1,7 +1,9 @@
 # backend/deduper/deduper.py
 from typing import List
+
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+
 
 def dedupe(texts: List[str], threshold: float = 0.85) -> List[str]:
     """

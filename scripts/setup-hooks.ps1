@@ -1,4 +1,3 @@
-﻿$script = @'
 # scripts/setup-hooks.ps1
 # Run this once after cloning to enable repository hooks
 # Usage: pwsh -NoProfile -File scripts/setup-hooks.ps1
@@ -23,7 +22,3 @@ if (Test-Path .githooks/pre-commit) {
 }
 
 Write-Host "core.hooksPath set to .githooks. To undo: git config --unset core.hooksPath"
-'@
-
-[System.IO.File]::WriteAllText("scripts/setup-hooks.ps1", $script, (New-Object System.Text.UTF8Encoding $false))
-Write-Host "Wrote scripts/setup-hooks.ps1 (UTF-8 without BOM)"
