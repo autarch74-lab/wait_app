@@ -24,6 +24,7 @@
   hooks:
     - id: flake8
       additional_dependencies: [flake8-bugbear]
+      args: [--extend-ignore=E501]
 
 - repo: https://github.com/pre-commit/mirrors-mypy
   rev: v1.5.1
