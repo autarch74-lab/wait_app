@@ -36,6 +36,7 @@
   hooks:
     - id: pytest
       name: pytest
-      entry: pytest -q
+      entry: pytest
       language: system
-      types: [python]
+      pass_filenames: false
+      always_run: true
