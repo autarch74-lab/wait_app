@@ -1,2 +1,13 @@
-*.dart text eol=lf
-pubspec.lock text eol=lf
+# Normalize line endings and treat text files as text
+* text=auto
+
+# Force LF and text for common text file types
+*.py text eol=lf
+*.md text eol=lf
+*.toml text eol=lf
+*.cfg text eol=lf
+*.ini text eol=lf
+*.txt text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.sh text eol=lf

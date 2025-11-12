@@ -1,0 +1,32 @@
+﻿# scripts/setup-hooks.ps1
+# Enable repository hooks and ensure pre-commit is executable
+# Usage: pwsh -NoProfile -File scripts/setup-hooks.ps1
+try {
+  $repo = git rev-parse --show-toplevel 2>$null
+} catch {
+  $repo = $null
+}
+if (-not $repo) {
+  Write-Error "Not inside a git repository."
+  exit 1
+}
+Set-Location $repo
+
+# Set hooks path
+git config core.hooksPath .githooks
+Write-Host "Set core.hooksPath to .githooks"
+
+# If pre-commit exists, ensure git records the executable bit
+$pre = Join-Path $repo ".githooks/pre-commit"
+if (Test-Path $pre) {
+  git update-index --add --chmod=+x .githooks/pre-commit 2>$null
+  if ($LASTEXITCODE -eq 0) {
+    Write-Host "Enabled executable bit for .githooks/pre-commit"
+  } else {
+    Write-Host "Updated index for .githooks/pre-commit (may require Git that supports chmod in index)"
+  }
+} else {
+  Write-Host ".githooks/pre-commit not found. Ensure .githooks is committed in the repository."
+}
+
+Write-Host "Done. To undo: git config --unset core.hooksPath"

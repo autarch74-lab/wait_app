@@ -1,0 +1,4 @@
+#!/bin/sh
+# Run pre-commit if installed, otherwise skip
+command -v pre-commit >/dev/null 2>&1 && exec pre-commit run --hook-stage commit
+exit 0
