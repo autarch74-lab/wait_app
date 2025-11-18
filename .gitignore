@@ -1,23 +1,18 @@
-# .gitignore 예시 항목
-.venv/
-backend/.venv/
+# Python
 __pycache__/
 *.pyc
-*.bak
-logs/
-node_modules/
 
-
+# Virtualenv
 .venv/
 backend/.venv/
-__pycache__/
-*.pyc
-*.bak
-logs/
 
-.venv/
-backend/.venv/
-__pycache__/
-*.pyc
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Temp / backups
 *.bak
+*.tmp
 logs/
