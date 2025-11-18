@@ -14,3 +14,10 @@ __pycache__/
 *.pyc
 *.bak
 logs/
+
+.venv/
+backend/.venv/
+__pycache__/
+*.pyc
+*.bak
+logs/
