@@ -1,7 +1,16 @@
+# .gitignore 예시 항목
+.venv/
 backend/.venv/
-Add-Content -Path .gitignore -Value "`nbackend/.venv/"backend/.venv/
-backend/.venv/
+__pycache__/
+*.pyc
+*.bak
+logs/
+node_modules/
 
-backend/.venv/
 
+.venv/
 backend/.venv/
+__pycache__/
+*.pyc
+*.bak
+logs/
