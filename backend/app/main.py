@@ -1,0 +1,8 @@
+from fastapi import FastAPI
+from app.api import collect, generate, status
+
+app = FastAPI(title="Wait Backend")
+
+app.include_router(collect.router, prefix="/api/collect", tags=["collect"])
+app.include_router(generate.router, prefix="/api/generate", tags=["generate"])
+app.include_router(status.router, prefix="/api/status", tags=["status"])
