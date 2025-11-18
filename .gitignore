@@ -16,3 +16,9 @@ Thumbs.db
 *.bak
 *.tmp
 logs/
+
+# ignore temp and backups
+*.bak
+*.txt
+backend/mobile/
+
