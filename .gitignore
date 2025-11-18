@@ -1,0 +1,2 @@
+backend/.venv/
+Add-Content -Path .gitignore -Value "`nbackend/.venv/"
